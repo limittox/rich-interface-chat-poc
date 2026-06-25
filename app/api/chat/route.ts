@@ -17,14 +17,13 @@ import { z } from "zod";
 export const maxDuration = 30;
 
 // Prefer OpenRouter when its key is present; otherwise use Anthropic direct.
-// Both route to real Claude through the Vercel AI SDK.
 function getModel(): LanguageModel {
   if (process.env.OPENROUTER_API_KEY) {
     const openrouter = createOpenRouter({
       apiKey: process.env.OPENROUTER_API_KEY,
     });
     return openrouter(
-      process.env.OPENROUTER_MODEL ?? "anthropic/claude-opus-4-8",
+      process.env.OPENROUTER_MODEL ?? "deepseek/deepseek-v4-flash",
     );
   }
   return anthropic(process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8");

@@ -1,20 +1,20 @@
 # rich-interface-chat-poc
 
 A minimal chat app built on the real [`@assistant-ui/react`](https://www.assistant-ui.com)
-library, streaming from **Claude** (`claude-opus-4-8`) through the Vercel AI SDK.
+library, streaming from **DeepSeek V4 Flash** (`deepseek/deepseek-v4-flash`) through OpenRouter and Vercel AI SDK.
 It includes a generative-UI demo: a weather card rendered from a
 `get_current_weather` tool call instead of raw JSON.
 
 Scaffolded from the official `assistant-ui` `with-ai-sdk-v6` example, then wired
-to Claude.
+to an env-selected model.
 
 ## Providers
 
 The `/api/chat` route selects its model at request time (`getModel()` in
 `app/api/chat/route.ts`):
 
-- **OpenRouter** (primary) — used when `OPENROUTER_API_KEY` is set. Routes to
-  Claude via [`@openrouter/ai-sdk-provider`]; model `anthropic/claude-opus-4-8`.
+- **OpenRouter** (primary) — used when `OPENROUTER_API_KEY` is set. Routes via
+  [`@openrouter/ai-sdk-provider`]; model `deepseek/deepseek-v4-flash`.
 - **Anthropic direct** — used when only `ANTHROPIC_API_KEY` is set. Uses
   `@ai-sdk/anthropic`; model `claude-opus-4-8`.
 
@@ -34,7 +34,7 @@ OpenRouter takes precedence when its key is present.
    ```sh
    # Option A (primary): OpenRouter
    OPENROUTER_API_KEY=sk-or-...
-   # OPENROUTER_MODEL=anthropic/claude-opus-4-8   # optional override
+   # OPENROUTER_MODEL=deepseek/deepseek-v4-flash   # optional override
 
    # Option B: Anthropic direct (leave OPENROUTER_API_KEY unset)
    # ANTHROPIC_API_KEY=sk-ant-...
@@ -51,9 +51,9 @@ OpenRouter takes precedence when its key is present.
 
 ## Try it
 
-- **Plain chat** — type any message; the reply streams from Claude.
+- **Plain chat** — type any message; the reply streams from the configured model.
 - **Generative UI** — click the built-in "What's the weather in Tokyo?"
-  suggestion (or ask about any city). Claude calls the `get_current_weather`
+  suggestion (or ask about any city). The model calls the `get_current_weather`
   tool and the result renders as a standalone weather card (mock data), not raw
   JSON.
 - **Visual artifacts** — ask something visual ("compare React vs Vue as

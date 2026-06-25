@@ -1,6 +1,7 @@
 "use client";
 
 import { Thread } from "@/components/assistant-ui/thread";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { WeatherToolUI } from "@/components/assistant-ui/weather-tool-ui";
 import {
   AssistantRuntimeProvider,
@@ -42,12 +43,14 @@ export default function Home() {
   const runtime = useChatRuntime();
 
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      {/* Registers the standalone weather card for the get_current_weather tool */}
-      <WeatherToolUI />
-      <div className="h-full">
-        <ThreadWithSuggestions />
-      </div>
-    </AssistantRuntimeProvider>
+    <TooltipProvider delayDuration={0}>
+      <AssistantRuntimeProvider runtime={runtime}>
+        {/* Registers the standalone weather card for the get_current_weather tool */}
+        <WeatherToolUI />
+        <div className="h-full">
+          <ThreadWithSuggestions />
+        </div>
+      </AssistantRuntimeProvider>
+    </TooltipProvider>
   );
 }
