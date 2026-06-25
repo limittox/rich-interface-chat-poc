@@ -1,6 +1,7 @@
 "use client";
 
 import { Thread } from "@/components/assistant-ui/thread";
+import { WeatherToolUI } from "@/components/assistant-ui/weather-tool-ui";
 import {
   AssistantRuntimeProvider,
   useAui,
@@ -36,6 +37,8 @@ export default function Home() {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
+      {/* Registers the standalone weather card for the get_current_weather tool */}
+      <WeatherToolUI />
       <div className="h-full">
         <ThreadWithSuggestions />
       </div>
