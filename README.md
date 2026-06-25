@@ -1,76 +1,82 @@
-# AI SDK v6 Example
+# rich-interface-chat-poc
 
-This example demonstrates how to use `@assistant-ui/react-ai-sdk` with the Vercel AI SDK v6.
+A minimal chat app built on the real [`@assistant-ui/react`](https://www.assistant-ui.com)
+library, streaming from **Claude** (`claude-opus-4-8`) through the Vercel AI SDK.
+It includes a generative-UI demo: a weather card rendered from a
+`get_current_weather` tool call instead of raw JSON.
 
-## Quick Start
+Scaffolded from the official `assistant-ui` `with-ai-sdk-v6` example, then wired
+to Claude.
 
-### Using CLI (Recommended)
+## Providers
 
-```bash
-npx assistant-ui@latest create my-app --example with-ai-sdk-v6
-cd my-app
-```
+The `/api/chat` route selects its model at request time (`getModel()` in
+`app/api/chat/route.ts`):
 
-### Environment Variables
+- **OpenRouter** (primary) — used when `OPENROUTER_API_KEY` is set. Routes to
+  Claude via [`@openrouter/ai-sdk-provider`]; model `anthropic/claude-opus-4-8`.
+- **Anthropic direct** — used when only `ANTHROPIC_API_KEY` is set. Uses
+  `@ai-sdk/anthropic`; model `claude-opus-4-8`.
 
-Create `.env.local`:
+OpenRouter takes precedence when its key is present.
 
-```sh
-OPENAI_API_KEY=your-api-key-here
-```
+## Setup
 
-### Run
+1. Install deps:
 
-```bash
-pnpm install
-pnpm dev
-```
+   ```bash
+   npm install
+   ```
 
-Open [http://localhost:3000](http://localhost:3000) to see the result.
+2. Provide one provider key. Either export it in your shell, or create
+   `.env.local` (gitignored — see `.env.example`):
 
-## Key Features
+   ```sh
+   # Option A (primary): OpenRouter
+   OPENROUTER_API_KEY=sk-or-...
+   # OPENROUTER_MODEL=anthropic/claude-opus-4-8   # optional override
 
-- Uses the new AI SDK v6 with `@ai-sdk/openai`
-- Integrates with `@assistant-ui/react` using the new `useChatRuntime` hook
-- No RSC support (client-side only)
-- Simplified integration with the `useChatRuntime` hook that wraps AI SDK v6's `useChat`
-- Uses `AssistantChatTransport` to pass system messages and frontend tools to the backend
+   # Option B: Anthropic direct (leave OPENROUTER_API_KEY unset)
+   # ANTHROPIC_API_KEY=sk-ant-...
+   # ANTHROPIC_MODEL=claude-opus-4-8              # optional override
+   ```
 
-## Custom Transport Configuration
+3. Run the dev server:
 
-By default, `useChatRuntime` uses `AssistantChatTransport` which automatically forwards system messages and frontend tools to the backend.
+   ```bash
+   npm run dev
+   ```
 
-### Custom API URL with Forwarding
+4. Open [http://localhost:3000](http://localhost:3000).
 
-When customizing the API URL, you must explicitly use `AssistantChatTransport` to keep system/tools forwarding:
+## Try it
 
-```typescript
-import { AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
+- **Plain chat** — type any message; the reply streams from Claude.
+- **Generative UI** — click the built-in "What's the weather in Tokyo?"
+  suggestion (or ask about any city). Claude calls the `get_current_weather`
+  tool and the result renders as a standalone weather card (mock data), not raw
+  JSON.
 
-const runtime = useChatRuntime({
-  transport: new AssistantChatTransport({
-    api: "/my-custom-api/chat", // Custom URL with system/tools forwarding
-  }),
-});
-```
+## How it works
 
-### Disable System/Tools Forwarding
+- `app/api/chat/route.ts` — streaming endpoint using AI SDK `streamText` with the
+  env-selected provider (`getModel()`). Exposes the `get_current_weather` tool,
+  which returns a structured result `{ location, unit, temperature, description,
+  humidity, windSpeed }` (mock data — swap `execute` for a real weather API).
+- `components/assistant-ui/weather-tool-ui.tsx` — `WeatherToolUI`, the
+  generative-UI renderer for that tool, registered with `display: "standalone"`
+  so the card surfaces on its own (loading / error / result states).
+- `app/page.tsx` — wires assistant-ui's `useChatRuntime` to `/api/chat` and
+  mounts `WeatherToolUI`.
 
-To use the standard AI SDK transport without forwarding:
+See `docs/superpowers/specs/2026-06-25-assistant-ui-chat-poc-design.md` for the
+design and `docs/superpowers/plans/2026-06-25-assistant-ui-chat-poc.md` for the
+implementation plan.
 
-```typescript
-import { DefaultChatTransport } from "ai";
+## Tech stack
 
-const runtime = useChatRuntime({
-  transport: new DefaultChatTransport(), // No system/tools forwarding
-});
-```
+Next.js (App Router) · Tailwind · shadcn · `@assistant-ui/react` +
+`@assistant-ui/react-ai-sdk` · `ai@^6` · `@ai-sdk/anthropic` +
+`@openrouter/ai-sdk-provider` · `zod` · TypeScript.
 
-## API Route
-
-The API route at `/api/chat` uses AI SDK v6 `streamText`, forwards `system` and frontend `tools`, and merges them with a server-defined weather tool.
-
-## Related Documentation
-
-- [assistant-ui Documentation](https://www.assistant-ui.com/docs)
-- [AI SDK Integration Guide](https://www.assistant-ui.com/docs/runtimes/ai-sdk)
+[`@openrouter/ai-sdk-provider`]: https://www.npmjs.com/package/@openrouter/ai-sdk-provider
