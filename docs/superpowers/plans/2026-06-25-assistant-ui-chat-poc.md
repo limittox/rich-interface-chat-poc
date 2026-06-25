@@ -11,9 +11,9 @@
 ## Global Constraints
 
 - Use the **real** `@assistant-ui/react` + `@assistant-ui/react-ai-sdk` packages — do not hand-roll chat primitives.
-- LLM provider: **`@ai-sdk/anthropic`** (Anthropic's official AI SDK provider — not an OpenAI-compatible shim). Model id: **`claude-opus-4-8`**.
+- LLM provider: **two backends, env-selected.** Prefer **OpenRouter** via `@openrouter/ai-sdk-provider` when `OPENROUTER_API_KEY` is set (model id `anthropic/claude-opus-4-8`, overridable via `OPENROUTER_MODEL`); otherwise fall back to **Anthropic direct** via `@ai-sdk/anthropic` (model id `claude-opus-4-8`, overridable via `ANTHROPIC_MODEL`). The primary path is OpenRouter.
 - Vercel AI SDK major version: **`ai@^6`** (note `convertToModelMessages` is async in v6).
-- `ANTHROPIC_API_KEY` is read from `.env.local` only. Never hardcode it; `.env.local` must be gitignored.
+- `OPENROUTER_API_KEY` / `ANTHROPIC_API_KEY` are read from `.env.local` only. Never hardcode them; `.env.local` must be gitignored.
 - Weather tool returns **mock data** — no third-party weather API/key in this POC.
 - This is integration/scaffolding code with no isolated business logic; verification is **running the app and observing behavior** with the expected output stated in each task.
 
@@ -84,43 +84,57 @@ cd /home/yathu/code/rich-interface-chat-poc && \
 
 ---
 
-### Task 2: Swap the backend to Claude and add the weather tool
+### Task 2: Swap the backend to Claude (OpenRouter + Anthropic) and add the weather tool
 
 **Files:**
 - Modify/Create: `app/api/chat/route.ts`
 - Create: `.env.local` (gitignored)
-- Modify: `package.json` (via `npm install @ai-sdk/anthropic`, remove `@ai-sdk/openai` if present)
+- Modify: `package.json` (via `npm install @ai-sdk/anthropic @openrouter/ai-sdk-provider`, remove `@ai-sdk/openai` if present)
 
 **Interfaces:**
 - Consumes: the assistant-ui frontend from Task 1 (posts `{ messages: UIMessage[] }` to `/api/chat`).
-- Produces: a streaming `POST /api/chat` backed by `anthropic("claude-opus-4-8")` exposing a `get_current_weather` tool with input `{ location: string; unit: "celsius" | "fahrenheit" }` and result `{ temperature: number; description: string; humidity: number; windSpeed: number }`. These exact arg/result shapes are consumed by the Task 3 weather card.
+- Produces: a streaming `POST /api/chat` whose model is chosen by `getModel()` — OpenRouter (`anthropic/claude-opus-4-8`) when `OPENROUTER_API_KEY` is set, else Anthropic direct (`claude-opus-4-8`) — exposing a `get_current_weather` tool with input `{ location: string; unit: "celsius" | "fahrenheit" }` and result `{ temperature: number; description: string; humidity: number; windSpeed: number }`. These exact arg/result shapes are consumed by the Task 3 weather card.
 
-- [ ] **Step 1: Install the Anthropic provider, ensure AI SDK v6**
+- [ ] **Step 1: Install both providers, ensure AI SDK v6**
 
 Run:
 ```bash
 cd /home/yathu/code/rich-interface-chat-poc && \
-  npm install @ai-sdk/anthropic ai@^6 zod && \
-  npm uninstall @ai-sdk/openai 2>/dev/null; npm ls ai @ai-sdk/anthropic
+  npm install @ai-sdk/anthropic @openrouter/ai-sdk-provider ai@^6 zod && \
+  npm uninstall @ai-sdk/openai 2>/dev/null; npm ls ai @ai-sdk/anthropic @openrouter/ai-sdk-provider
 ```
-Expected: `ai@6.x` and `@ai-sdk/anthropic` listed. (`npm uninstall` is best-effort; ignore if `@ai-sdk/openai` was not installed.)
+Expected: `ai@6.x`, `@ai-sdk/anthropic`, and `@openrouter/ai-sdk-provider` listed. (`npm uninstall` is best-effort; ignore if `@ai-sdk/openai` was not installed.)
 
-- [ ] **Step 2: Write the Claude-backed route with the weather tool**
+- [ ] **Step 2: Write the route with env-selected provider and the weather tool**
 
 Replace the contents of `app/api/chat/route.ts` with:
 ```ts
 import { anthropic } from "@ai-sdk/anthropic";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { streamText, convertToModelMessages, tool, zodSchema } from "ai";
-import type { UIMessage } from "ai";
+import type { LanguageModel, UIMessage } from "ai";
 import { z } from "zod";
 
 export const maxDuration = 30;
+
+// Prefer OpenRouter when its key is present; otherwise use Anthropic direct.
+function getModel(): LanguageModel {
+  if (process.env.OPENROUTER_API_KEY) {
+    const openrouter = createOpenRouter({
+      apiKey: process.env.OPENROUTER_API_KEY,
+    });
+    return openrouter(
+      process.env.OPENROUTER_MODEL ?? "anthropic/claude-opus-4-8",
+    );
+  }
+  return anthropic(process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8");
+}
 
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
   const result = streamText({
-    model: anthropic("claude-opus-4-8"),
+    model: getModel(),
     messages: await convertToModelMessages(messages),
     tools: {
       get_current_weather: tool({
@@ -146,16 +160,16 @@ export async function POST(req: Request) {
   return result.toUIMessageStreamResponse();
 }
 ```
-Note: `execute` echoes `location` and `unit` into the result so the card can render them even if it only reads `result`.
+Notes: `getModel()` reads env at request time (server-side), so no key is bundled into the client. `execute` echoes `location`/`unit` into the result so the Task 3 card can render them even if it only reads `result`. If the installed `@openrouter/ai-sdk-provider` returns a model type that doesn't satisfy `LanguageModel` for `streamText` under the pinned `ai@^6`, drop the explicit `LanguageModel` annotation on `getModel()` and let it infer — discover the correct type from `node_modules/@openrouter/ai-sdk-provider` exports rather than guessing.
 
 - [ ] **Step 3: Add the API key locally**
 
-Create `.env.local` (replace the placeholder with the real key — ask the user for it if not provided; do NOT commit this file):
+Create `.env.local` with the user's OpenRouter key (the primary path). Replace the placeholder with the real key — ask the user for it if not provided; do NOT commit this file:
 ```bash
 cd /home/yathu/code/rich-interface-chat-poc && \
-  printf 'ANTHROPIC_API_KEY=%s\n' "$ANTHROPIC_API_KEY_PLACEHOLDER" > .env.local
+  printf 'OPENROUTER_API_KEY=%s\n' "$OPENROUTER_API_KEY_PLACEHOLDER" > .env.local
 ```
-If `$ANTHROPIC_API_KEY_PLACEHOLDER` is not set in the environment, write the file with a literal `ANTHROPIC_API_KEY=` line and tell the user to paste their key in. Confirm it is ignored:
+If `$OPENROUTER_API_KEY_PLACEHOLDER` is not set in the environment, write the file with a literal `OPENROUTER_API_KEY=` line and tell the user to paste their key in. (To use Anthropic direct instead, write `ANTHROPIC_API_KEY=...` and leave `OPENROUTER_API_KEY` unset.) Confirm it is ignored:
 ```bash
 git check-ignore .env.local
 ```
@@ -181,14 +195,14 @@ curl -N -s -X POST http://localhost:3000/api/chat \
   -H 'Content-Type: application/json' \
   -d '{"messages":[{"id":"1","role":"user","parts":[{"type":"text","text":"Say hello in 3 words"}]}]}' | head -c 400
 ```
-Expected: a streamed `text/event-stream`-style body containing token chunks of Claude's reply (not an auth error). If you get a 401/`authentication` error, the API key in `.env.local` is missing/invalid. Stop the dev server when done.
+Expected: a streamed `text/event-stream`-style body containing token chunks of Claude's reply (routed via OpenRouter), not an auth error. If you get a 401/`authentication` error, the key in `.env.local` is missing/invalid (check that `OPENROUTER_API_KEY` is set). Stop the dev server when done.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 cd /home/yathu/code/rich-interface-chat-poc && \
   git add app/api/chat/route.ts package.json package-lock.json && \
-  git commit -m "Swap chat backend to Claude with weather tool"
+  git commit -m "Swap chat backend to Claude via OpenRouter/Anthropic with weather tool"
 ```
 (`.env.local` is intentionally not staged.)
 
@@ -344,19 +358,30 @@ Create/replace `README.md`:
 # rich-interface-chat-poc
 
 A minimal chat app built on the real [`@assistant-ui/react`](https://www.assistant-ui.com)
-library, streaming from Claude (`claude-opus-4-8`) via the Vercel AI SDK
-`@ai-sdk/anthropic` provider. Includes a generative-UI demo: a weather card
-rendered from a `get_current_weather` tool call.
+library, streaming from Claude (`claude-opus-4-8`) via the Vercel AI SDK.
+The backend supports two providers, selected by which key is present:
+**OpenRouter** (`@openrouter/ai-sdk-provider`) or **Anthropic direct**
+(`@ai-sdk/anthropic`). Includes a generative-UI demo: a weather card rendered
+from a `get_current_weather` tool call.
 
 ## Setup
 
 1. Install deps: `npm install`
-2. Create `.env.local` with your Anthropic key:
+2. Create `.env.local` with one provider key:
    ```
-   ANTHROPIC_API_KEY=sk-ant-...
+   # Option A (primary): OpenRouter
+   OPENROUTER_API_KEY=sk-or-...
+   # OPENROUTER_MODEL=anthropic/claude-opus-4-8   # optional override
+
+   # Option B: Anthropic direct (leave OPENROUTER_API_KEY unset)
+   # ANTHROPIC_API_KEY=sk-ant-...
+   # ANTHROPIC_MODEL=claude-opus-4-8              # optional override
    ```
 3. Run the dev server: `npm run dev`
 4. Open http://localhost:3000
+
+The route prefers OpenRouter when `OPENROUTER_API_KEY` is set, otherwise falls
+back to the Anthropic provider.
 
 ## Try it
 
@@ -367,8 +392,8 @@ rendered from a `get_current_weather` tool call.
 
 ## How it works
 
-- `app/api/chat/route.ts` — streaming endpoint using AI SDK `streamText` +
-  `anthropic("claude-opus-4-8")`, exposing the `get_current_weather` tool.
+- `app/api/chat/route.ts` — streaming endpoint using AI SDK `streamText` with an
+  env-selected provider (`getModel()`), exposing the `get_current_weather` tool.
 - `app/page.tsx` — wires assistant-ui's `useChatRuntime` to `/api/chat`.
 - `components/assistant-ui/weather-tool-ui.tsx` — renders the tool call as a card.
 
@@ -388,5 +413,5 @@ cd /home/yathu/code/rich-interface-chat-poc && \
 ## Notes for the implementer
 
 - **Manual verification is the test strategy here** by design (Global Constraints): this POC is scaffolding + integration glue + one presentational component, with no isolated logic worth a unit harness. Each task's runtime check has a concrete expected output — treat a mismatch as a failing test and debug before moving on (use superpowers:systematic-debugging).
-- **The API key is required** for the runtime checks in Tasks 2 and 3. If it is not available, complete the build-only steps and flag the streaming/card checks as blocked pending the key — do not mark the task done on build success alone.
+- **A provider key is required** for the runtime checks in Tasks 2 and 3 — `OPENROUTER_API_KEY` (primary) or `ANTHROPIC_API_KEY`. If neither is available, complete the build-only steps and flag the streaming/card checks as blocked pending the key — do not mark the task done on build success alone.
 - If the assistant-ui CLI or package versions have moved and an exact symbol/name differs from this plan, prefer the installed package's actual exports (Task 3 Step 1 shows how to discover them) over the names written here.
