@@ -30,6 +30,25 @@ function getModel(): LanguageModel {
   return anthropic(process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8");
 }
 
+const VISUAL_SYSTEM_PROMPT = `You can render rich visuals inline in chat when they materially help the answer: styled cards, callouts, side-by-side comparisons, simple diagrams, timelines, or simple charts. Prefer normal prose and markdown for ordinary answers; only use a visual when custom layout adds real value.
+
+To render a visual, output a single fenced code block tagged \`visual\` whose body is ONLY the visual content: HTML, optional inline <style>, and optional inline <script>. Do not include <html>, <head>, or <body> tags; the app adds those.
+
+Visual constraints, strictly enforced by the renderer:
+- Fully self-contained: inline CSS and JS only.
+- No external resources and no network of any kind: no remote scripts, styles, fonts, images, fetch, XHR, WebSocket, or sendBeacon.
+- Use data: URIs only if an image is essential.
+- Make the visual responsive to the container width.
+- Draw charts with <canvas> or inline SVG. No chart libraries are available.
+- You may write normal prose before or after the visual block.
+
+Example:
+\`\`\`visual
+<div style="font-weight:600">Quarterly revenue</div>
+<canvas id="chart" width="320" height="120"></canvas>
+<script>/* draw bars on #chart */</script>
+\`\`\``;
+
 export async function POST(req: Request) {
   const {
     messages,
@@ -44,7 +63,9 @@ export async function POST(req: Request) {
   const result = streamText({
     model: getModel(),
     messages: await convertToModelMessages(messages),
-    ...(system ? { system } : {}),
+    system: system
+      ? `${VISUAL_SYSTEM_PROMPT}\n\n${system}`
+      : VISUAL_SYSTEM_PROMPT,
     stopWhen: stepCountIs(10),
     tools: {
       ...frontendTools(tools ?? {}),

@@ -56,6 +56,10 @@ OpenRouter takes precedence when its key is present.
   suggestion (or ask about any city). Claude calls the `get_current_weather`
   tool and the result renders as a standalone weather card (mock data), not raw
   JSON.
+- **Visual artifacts** — ask something visual ("compare React vs Vue as
+  visual", "draw a bar chart as visual"). The model emits self-contained
+  HTML/CSS/JS that renders inline in a **sandboxed, no-network iframe** with
+  strict CSP. Charts are drawn with canvas or inline SVG.
 
 ## How it works
 
@@ -66,6 +70,10 @@ OpenRouter takes precedence when its key is present.
 - `components/assistant-ui/weather-tool-ui.tsx` — `WeatherToolUI`, the
   generative-UI renderer for that tool, registered with `display: "standalone"`
   so the card surfaces on its own (loading / error / result states).
+- `components/assistant-ui/visual-artifact.tsx` — `VisualArtifact`, the
+  sandboxed iframe renderer. `markdown-text.tsx` maps the `visual` fenced block
+  to it; the artifact system prompt lives in `app/api/chat/route.ts`. See
+  `docs/superpowers/specs/2026-06-25-visual-artifacts-design.md`.
 - `app/page.tsx` — wires assistant-ui's `useChatRuntime` to `/api/chat` and
   mounts `WeatherToolUI`.
 

@@ -23,6 +23,12 @@ function ThreadWithSuggestions() {
         label: "about any topic",
         prompt: "Tell me a fun fact about space.",
       },
+      {
+        title: "Compare React vs Vue",
+        label: "as a visual",
+        prompt:
+          "Compare React and Vue across a few dimensions, present it as a visual.",
+      },
     ]),
   });
   return (
