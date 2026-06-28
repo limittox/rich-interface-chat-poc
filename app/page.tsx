@@ -3,6 +3,7 @@
 import { Thread } from "@/components/assistant-ui/thread";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { WeatherToolUI } from "@/components/assistant-ui/weather-tool-ui";
+import { GenerateVisualToolUI } from "@/components/assistant-ui/generate-visual-tool-ui";
 import {
   AssistantRuntimeProvider,
   useAui,
@@ -47,6 +48,8 @@ export default function Home() {
       <AssistantRuntimeProvider runtime={runtime}>
         {/* Registers the standalone weather card for the get_current_weather tool */}
         <WeatherToolUI />
+        {/* Registers the standalone NIM-generated visual for the generate_visual tool */}
+        <GenerateVisualToolUI />
         <div className="h-full">
           <ThreadWithSuggestions />
         </div>

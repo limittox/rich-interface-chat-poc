@@ -7,8 +7,6 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import type { SyntaxHighlighterProps } from "@assistant-ui/react-markdown";
-
 // Generous safety ceiling: normal artifacts size to their full content and are
 // never clipped. Only a pathologically tall artifact hits this cap, in which
 // case the iframe scrolls internally (see the iframe styles below) rather than
@@ -130,6 +128,3 @@ export function VisualArtifact({ html }: { html: string }) {
   );
 }
 
-export function VisualArtifactHighlighter({ code }: SyntaxHighlighterProps) {
-  return <VisualArtifact html={code} />;
-}

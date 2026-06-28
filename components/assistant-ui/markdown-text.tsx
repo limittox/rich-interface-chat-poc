@@ -12,18 +12,8 @@ import remarkGfm from "remark-gfm";
 import { type FC, memo, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
-import { VisualArtifactHighlighter } from "@/components/assistant-ui/visual-artifact";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
-
-const VisualCodeHeader: FC<CodeHeaderProps> = () => null;
-
-const componentsByLanguage = {
-  visual: {
-    SyntaxHighlighter: VisualArtifactHighlighter,
-    CodeHeader: VisualCodeHeader,
-  },
-};
 
 const MarkdownTextImpl = () => {
   return (
@@ -31,7 +21,6 @@ const MarkdownTextImpl = () => {
       remarkPlugins={[remarkGfm]}
       className="aui-md"
       components={defaultComponents}
-      componentsByLanguage={componentsByLanguage}
       defer
     />
   );
