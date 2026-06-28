@@ -34,7 +34,7 @@ const VISUAL_SYSTEM_PROMPT = `When a response would materially benefit from a cu
 
 Pass a clear, detailed \`description\` of exactly what the visual should show: its content, structure, and every data value to display. A separate model turns your description into rendered HTML, so be specific — it sees only your description, not the conversation. Optionally pass a short \`title\`.
 
-Do NOT write HTML yourself. Prefer normal prose and markdown for ordinary answers; only request a visual when custom layout adds real value. You may write prose before and after requesting a visual.`;
+Do NOT write HTML yourself, anywhere — not in the tool description and not in your prose. The visual is rendered for the user automatically once the tool returns, so do NOT add an HTML fallback, do NOT warn that it "might not render," and do NOT restate or summarize the visual's contents as a table, list, or extra prose. Keep any text around a visual to at most a brief sentence of lead-in or follow-up. Prefer normal prose and markdown for ordinary answers; only request a visual when custom layout adds real value.`;
 
 export async function POST(req: Request) {
   const {
