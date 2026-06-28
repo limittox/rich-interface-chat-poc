@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ComparisonPanel,
@@ -30,6 +30,13 @@ export default function ComparePage() {
   const [left, setLeft] = useState<PanelState>(INITIAL); // deepseek
   const [right, setRight] = useState<PanelState>(INITIAL); // nim
   const tickRef = useRef<number | null>(null);
+
+  // Clear the live-timer interval if the component unmounts mid-race.
+  useEffect(() => {
+    return () => {
+      if (tickRef.current) window.clearInterval(tickRef.current);
+    };
+  }, []);
 
   const running = left.status === "running" || right.status === "running";
 
