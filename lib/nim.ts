@@ -49,23 +49,22 @@ export function repairVisualHtml(raw: string): string {
   return "";
 }
 
+const NIM_TEXT_MAX_TOKENS = 1000;
+
+type NimMessage = { role: "system" | "user"; content: string };
+
 /**
- * Call the NVIDIA NIM diffusion model to generate inline visual HTML from a
- * natural-language description. Never throws — returns { error } on any failure
- * so the chat turn can continue with prose only.
+ * Shared NVIDIA NIM chat-completions call. Never throws — returns { content }
+ * with the raw assistant text, or { error } on any failure.
  */
-export async function generateVisualHtml(input: {
-  description: string;
-  title?: string;
-}): Promise<VisualResult> {
+async function nimChat(
+  messages: NimMessage[],
+  maxTokens: number,
+): Promise<{ content: string } | { error: string }> {
   const apiKey = process.env.NVIDIA_NIM_API_KEY;
   if (!apiKey) return { error: "NVIDIA_NIM_API_KEY is not set" };
 
   const model = process.env.NVIDIA_NIM_MODEL ?? DEFAULT_NIM_MODEL;
-  const userPrompt = input.title
-    ? `Title: ${input.title}\n\n${input.description}`
-    : input.description;
-
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), NIM_TIMEOUT_MS);
 
@@ -78,19 +77,14 @@ export async function generateVisualHtml(input: {
       },
       body: JSON.stringify({
         model,
-        messages: [
-          { role: "system", content: VISUAL_GENERATION_SYSTEM_PROMPT },
-          { role: "user", content: userPrompt },
-        ],
-        max_tokens: NIM_MAX_TOKENS,
+        messages,
+        max_tokens: maxTokens,
         temperature: 0.2,
       }),
       signal: controller.signal,
     });
 
-    if (!res.ok) {
-      return { error: `NIM request failed: ${res.status}` };
-    }
+    if (!res.ok) return { error: `NIM request failed: ${res.status}` };
 
     const data = (await res.json()) as {
       choices?: Array<{ message?: { content?: unknown } }>;
@@ -99,10 +93,7 @@ export async function generateVisualHtml(input: {
     if (typeof raw !== "string" || raw.trim() === "") {
       return { error: "NIM returned empty output" };
     }
-
-    const html = repairVisualHtml(raw);
-    if (html === "") return { error: "NIM returned empty output" };
-    return { html };
+    return { content: raw };
   } catch (err) {
     const reason =
       err instanceof Error && err.name === "AbortError"
@@ -112,4 +103,46 @@ export async function generateVisualHtml(input: {
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Call the NVIDIA NIM diffusion model to generate inline visual HTML from a
+ * natural-language description. Never throws — returns { error } on any failure
+ * so the chat turn can continue with prose only.
+ */
+export async function generateVisualHtml(input: {
+  description: string;
+  title?: string;
+}): Promise<VisualResult> {
+  const userPrompt = input.title
+    ? `Title: ${input.title}\n\n${input.description}`
+    : input.description;
+
+  const result = await nimChat(
+    [
+      { role: "system", content: VISUAL_GENERATION_SYSTEM_PROMPT },
+      { role: "user", content: userPrompt },
+    ],
+    NIM_MAX_TOKENS,
+  );
+  if ("error" in result) return result;
+
+  const html = repairVisualHtml(result.content);
+  if (html === "") return { error: "NIM returned empty output" };
+  return { html };
+}
+
+/**
+ * Call the NVIDIA NIM diffusion model for a plain-text answer — no visual system
+ * prompt and no HTML repair. Used by the compare page's text mode. Never throws.
+ */
+export async function generateNimText(
+  prompt: string,
+): Promise<{ text: string } | { error: string }> {
+  const result = await nimChat(
+    [{ role: "user", content: prompt }],
+    NIM_TEXT_MAX_TOKENS,
+  );
+  if ("error" in result) return result;
+  return { text: result.content.trim() };
 }

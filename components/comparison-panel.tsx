@@ -17,6 +17,7 @@ export function ComparisonPanel({
   wallMs,
   serverMs,
   html,
+  text,
   error,
 }: {
   title: string;
@@ -25,6 +26,7 @@ export function ComparisonPanel({
   wallMs: number;
   serverMs: number | null;
   html: string | null;
+  text: string | null;
   error: string | null;
 }) {
   return (
@@ -70,6 +72,11 @@ export function ComparisonPanel({
           </div>
         )}
         {status === "done" && html && <VisualArtifact html={html} />}
+        {status === "done" && !html && text && (
+          <div className="whitespace-pre-wrap text-sm leading-relaxed">
+            {text}
+          </div>
+        )}
       </div>
     </div>
   );

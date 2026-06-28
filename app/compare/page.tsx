@@ -7,6 +7,7 @@ import {
   type PanelStatus,
 } from "@/components/comparison-panel";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { OutputModeToggle } from "@/components/output-mode-toggle";
 
 type Provider = "deepseek" | "nim";
 
@@ -15,6 +16,7 @@ type PanelState = {
   wallMs: number;
   serverMs: number | null;
   html: string | null;
+  text: string | null;
   error: string | null;
 };
 
@@ -23,6 +25,7 @@ const INITIAL: PanelState = {
   wallMs: 0,
   serverMs: null,
   html: null,
+  text: null,
   error: null,
 };
 
@@ -30,6 +33,7 @@ export default function ComparePage() {
   const [prompt, setPrompt] = useState("");
   const [left, setLeft] = useState<PanelState>(INITIAL); // deepseek
   const [right, setRight] = useState<PanelState>(INITIAL); // nim
+  const [visualsEnabled, setVisualsEnabled] = useState(true);
   const tickRef = useRef<number | null>(null);
 
   // Clear the live-timer interval if the component unmounts mid-race.
@@ -41,30 +45,41 @@ export default function ComparePage() {
 
   const running = left.status === "running" || right.status === "running";
 
+  function handleVisualsChange(next: boolean) {
+    setVisualsEnabled(next);
+    // Clear stale results so the panels match the newly selected mode.
+    setLeft(INITIAL);
+    setRight(INITIAL);
+  }
+
   async function runProvider(
     provider: Provider,
     p: string,
     t0: number,
+    visuals: boolean,
     setPanel: React.Dispatch<React.SetStateAction<PanelState>>,
   ) {
     try {
       const res = await fetch("/api/visual-compare", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: p, provider }),
+        body: JSON.stringify({ prompt: p, provider, visuals }),
       });
       const wallMs = performance.now() - t0;
       const data = (await res.json()) as {
         html?: string;
+        text?: string;
         error?: string;
         elapsedMs?: number;
       };
+      const ok = Boolean(data.html || data.text);
       setPanel({
-        status: data.html ? "done" : "error",
+        status: ok ? "done" : "error",
         wallMs,
         serverMs: typeof data.elapsedMs === "number" ? data.elapsedMs : null,
         html: data.html ?? null,
-        error: data.error ?? (data.html ? null : "Generation failed."),
+        text: data.text ?? null,
+        error: data.error ?? (ok ? null : "Generation failed."),
       });
     } catch {
       setPanel({
@@ -72,6 +87,7 @@ export default function ComparePage() {
         wallMs: performance.now() - t0,
         serverMs: null,
         html: null,
+        text: null,
         error: "Request failed.",
       });
     }
@@ -96,8 +112,8 @@ export default function ComparePage() {
     }, 80);
 
     void Promise.allSettled([
-      runProvider("deepseek", p, t0, setLeft),
-      runProvider("nim", p, t0, setRight),
+      runProvider("deepseek", p, t0, visualsEnabled, setLeft),
+      runProvider("nim", p, t0, visualsEnabled, setRight),
     ]).finally(() => {
       if (tickRef.current) {
         window.clearInterval(tickRef.current);
@@ -113,6 +129,11 @@ export default function ComparePage() {
           Diffusion vs Autoregressive — visual generation race
         </h1>
         <div className="flex items-center gap-3">
+          <OutputModeToggle
+            value={visualsEnabled}
+            onChange={handleVisualsChange}
+            disabled={running}
+          />
           <Link
             href="/"
             className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
@@ -131,6 +152,7 @@ export default function ComparePage() {
           wallMs={left.wallMs}
           serverMs={left.serverMs}
           html={left.html}
+          text={left.text}
           error={left.error}
         />
         <ComparisonPanel
@@ -140,6 +162,7 @@ export default function ComparePage() {
           wallMs={right.wallMs}
           serverMs={right.serverMs}
           html={right.html}
+          text={right.text}
           error={right.error}
         />
       </div>
@@ -151,7 +174,7 @@ export default function ComparePage() {
         <input
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Describe a visual to generate on both models…"
+          placeholder="Enter a prompt to send to both models…"
           className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
         <button
