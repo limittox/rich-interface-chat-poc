@@ -9,7 +9,11 @@ import {
 } from "react";
 import type { SyntaxHighlighterProps } from "@assistant-ui/react-markdown";
 
-const MAX_HEIGHT = 600;
+// Generous safety ceiling: normal artifacts size to their full content and are
+// never clipped. Only a pathologically tall artifact hits this cap, in which
+// case the iframe scrolls internally (see the iframe styles below) rather than
+// silently dropping content.
+const MAX_HEIGHT = 2000;
 const MIN_HEIGHT = 120;
 const DEBOUNCE_MS = 250;
 const ARTIFACT_CSP =
