@@ -12,6 +12,7 @@ import {
   zodSchema,
 } from "ai";
 import { z } from "zod";
+import { generateVisualHtml } from "@/lib/nim";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -29,24 +30,11 @@ function getModel(): LanguageModel {
   return anthropic(process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8");
 }
 
-const VISUAL_SYSTEM_PROMPT = `You can render rich visuals inline in chat when they materially help the answer: styled cards, callouts, side-by-side comparisons, simple diagrams, timelines, or simple charts. Prefer normal prose and markdown for ordinary answers; only use a visual when custom layout adds real value.
+const VISUAL_SYSTEM_PROMPT = `When a response would materially benefit from a custom visual — a styled card, a side-by-side comparison, a simple diagram, a timeline, or a simple chart — call the \`generate_visual\` tool.
 
-To render a visual, output a single fenced code block tagged \`visual\` whose body is ONLY the visual content: HTML, optional inline <style>, and optional inline <script>. Do not include <html>, <head>, or <body> tags; the app adds those.
+Pass a clear, detailed \`description\` of exactly what the visual should show: its content, structure, and every data value to display. A separate model turns your description into rendered HTML, so be specific — it sees only your description, not the conversation. Optionally pass a short \`title\`.
 
-Visual constraints, strictly enforced by the renderer:
-- Fully self-contained: inline CSS and JS only.
-- No external resources and no network of any kind: no remote scripts, styles, fonts, images, fetch, XHR, WebSocket, or sendBeacon.
-- Use data: URIs only if an image is essential.
-- Make the visual responsive to the container width.
-- Draw charts with <canvas> or inline SVG. No chart libraries are available.
-- You may write normal prose before or after the visual block.
-
-Example:
-\`\`\`visual
-<div style="font-weight:600">Quarterly revenue</div>
-<canvas id="chart" width="320" height="120"></canvas>
-<script>/* draw bars on #chart */</script>
-\`\`\``;
+Do NOT write HTML yourself. Prefer normal prose and markdown for ordinary answers; only request a visual when custom layout adds real value. You may write prose before and after requesting a visual.`;
 
 export async function POST(req: Request) {
   const {
@@ -84,6 +72,25 @@ export async function POST(req: Request) {
           humidity: 50,
           windSpeed: 12,
         }),
+      }),
+      generate_visual: tool({
+        description:
+          "Render a custom visual (styled card, comparison, diagram, timeline, or simple chart) from a natural-language description. A separate model generates the HTML/CSS; do not pass HTML.",
+        inputSchema: zodSchema(
+          z.object({
+            description: z
+              .string()
+              .describe(
+                "Detailed description of the visual's content, structure, and all data values to display.",
+              ),
+            title: z
+              .string()
+              .optional()
+              .describe("Optional short title for the visual."),
+          }),
+        ),
+        execute: async ({ description, title }) =>
+          generateVisualHtml({ description, title }),
       }),
     },
   });
