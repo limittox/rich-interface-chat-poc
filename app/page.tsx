@@ -10,6 +10,7 @@ import {
   VisualProviderToggle,
   type VisualProvider,
 } from "@/components/visual-provider-toggle";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   AssistantRuntimeProvider,
   useAui,
@@ -85,10 +86,13 @@ export default function Home() {
             >
               Compare ↗
             </Link>
-            <VisualProviderToggle
-              value={visualProvider}
-              onChange={setVisualProvider}
-            />
+            <div className="flex items-center gap-3">
+              <VisualProviderToggle
+                value={visualProvider}
+                onChange={setVisualProvider}
+              />
+              <ThemeToggle />
+            </div>
           </header>
           <div className="min-h-0 flex-1">
             <ThreadWithSuggestions />

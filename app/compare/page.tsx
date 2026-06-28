@@ -6,6 +6,7 @@ import {
   ComparisonPanel,
   type PanelStatus,
 } from "@/components/comparison-panel";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type Provider = "deepseek" | "nim";
 
@@ -111,12 +112,15 @@ export default function ComparePage() {
         <h1 className="text-sm font-semibold">
           Diffusion vs Autoregressive — visual generation race
         </h1>
-        <Link
-          href="/"
-          className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-        >
-          ← Back to chat
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          >
+            ← Back to chat
+          </Link>
+          <ThemeToggle />
+        </div>
       </header>
 
       <div className="grid min-h-0 flex-1 grid-cols-2 gap-4 p-4">
