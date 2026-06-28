@@ -3,7 +3,9 @@ const DEFAULT_NIM_MODEL = "google/diffusiongemma-26b-a4b-it";
 const NIM_TIMEOUT_MS = 25_000;
 const NIM_MAX_TOKENS = 3000;
 
-const NIM_SYSTEM_PROMPT = `You generate a single self-contained block of HTML and CSS to be rendered inline inside a chat message.
+// Shared by both visual providers (NIM and the OpenRouter/DeepSeek fallback) so
+// they generate HTML under identical constraints.
+export const VISUAL_GENERATION_SYSTEM_PROMPT = `You generate a single self-contained block of HTML and CSS to be rendered inline inside a chat message.
 
 Strict rules:
 - Output ONLY raw HTML. Start your output with a "<" character.
@@ -77,7 +79,7 @@ export async function generateVisualHtml(input: {
       body: JSON.stringify({
         model,
         messages: [
-          { role: "system", content: NIM_SYSTEM_PROMPT },
+          { role: "system", content: VISUAL_GENERATION_SYSTEM_PROMPT },
           { role: "user", content: userPrompt },
         ],
         max_tokens: NIM_MAX_TOKENS,

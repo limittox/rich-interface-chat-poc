@@ -13,6 +13,7 @@ import {
 } from "ai";
 import { z } from "zod";
 import { generateVisualHtml } from "@/lib/nim";
+import { generateVisualWithModel } from "@/lib/visual";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -47,8 +48,16 @@ export async function POST(req: Request) {
     tools?: Record<string, { description?: string; parameters: JSONSchema7 }>;
   } = await req.json();
 
+  // Toggle (sent by the client as a header): "deepseek" makes the chat model
+  // generate visuals too; otherwise visuals come from the NIM diffusion model.
+  const visualProvider =
+    req.headers.get("x-aui-visual-provider") === "deepseek"
+      ? "deepseek"
+      : "nim";
+  const model = getModel();
+
   const result = streamText({
-    model: getModel(),
+    model,
     messages: await convertToModelMessages(messages),
     system: system
       ? `${VISUAL_SYSTEM_PROMPT}\n\n${system}`
@@ -90,7 +99,9 @@ export async function POST(req: Request) {
           }),
         ),
         execute: async ({ description, title }) =>
-          generateVisualHtml({ description, title }),
+          visualProvider === "deepseek"
+            ? generateVisualWithModel({ description, title, model })
+            : generateVisualHtml({ description, title }),
       }),
     },
   });

@@ -1,16 +1,21 @@
 "use client";
 
+import { useMemo, useRef, useState } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { WeatherToolUI } from "@/components/assistant-ui/weather-tool-ui";
 import { GenerateVisualToolUI } from "@/components/assistant-ui/generate-visual-tool-ui";
+import {
+  VisualProviderToggle,
+  type VisualProvider,
+} from "@/components/visual-provider-toggle";
 import {
   AssistantRuntimeProvider,
   useAui,
   AuiProvider,
   Suggestions,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 function ThreadWithSuggestions() {
   const aui = useAui({
@@ -41,17 +46,46 @@ function ThreadWithSuggestions() {
 }
 
 export default function Home() {
-  const runtime = useChatRuntime();
+  const [visualProvider, setVisualProvider] = useState<VisualProvider>("nim");
+
+  // Latest-value ref so the memoized transport reads the current toggle value
+  // on every request without being rebuilt.
+  const providerRef = useRef<VisualProvider>(visualProvider);
+  providerRef.current = visualProvider;
+
+  const transport = useMemo(
+    () =>
+      new AssistantChatTransport({
+        // Inject the current toggle value as a header on each request, without
+        // touching assistant-ui's body assembly (messages/system/tools).
+        fetch: (input, init) => {
+          const headers = new Headers(init?.headers);
+          headers.set("x-aui-visual-provider", providerRef.current);
+          return globalThis.fetch(input, { ...init, headers });
+        },
+      }),
+    [],
+  );
+
+  const runtime = useChatRuntime({ transport });
 
   return (
     <TooltipProvider delayDuration={0}>
       <AssistantRuntimeProvider runtime={runtime}>
         {/* Registers the standalone weather card for the get_current_weather tool */}
         <WeatherToolUI />
-        {/* Registers the standalone NIM-generated visual for the generate_visual tool */}
+        {/* Registers the standalone generated visual for the generate_visual tool */}
         <GenerateVisualToolUI />
-        <div className="h-full">
-          <ThreadWithSuggestions />
+        <div className="flex h-full flex-col">
+          <header className="flex items-center justify-end border-b border-border px-4 py-2">
+            <VisualProviderToggle
+              value={visualProvider}
+              onChange={setVisualProvider}
+            />
+          </header>
+          <div className="min-h-0 flex-1">
+            <ThreadWithSuggestions />
+          </div>
         </div>
       </AssistantRuntimeProvider>
     </TooltipProvider>
