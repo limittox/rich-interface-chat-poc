@@ -37,4 +37,14 @@ describe("repairVisualHtml", () => {
   it("returns empty string for empty input", () => {
     expect(repairVisualHtml("   ")).toBe("");
   });
+
+  it("returns empty string for prose containing no tag", () => {
+    expect(repairVisualHtml("Sorry, I can't generate that.")).toBe("");
+  });
+
+  it("strips a space-indented closing fence", () => {
+    expect(repairVisualHtml("```html\n<div>hi</div>\n   ```")).toBe(
+      "<div>hi</div>",
+    );
+  });
 });

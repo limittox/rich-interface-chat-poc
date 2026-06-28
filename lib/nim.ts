@@ -32,7 +32,7 @@ export function repairVisualHtml(raw: string): string {
   // Strip a wrapping ```html / ``` fence.
   html = html
     .replace(/^```(?:html)?[ \t]*\r?\n?/i, "")
-    .replace(/\r?\n?```[ \t]*$/i, "")
+    .replace(/\r?\n?[ \t]*```[ \t]*$/i, "")
     .trim();
 
   if (html.startsWith("<")) return html;
@@ -44,7 +44,7 @@ export function repairVisualHtml(raw: string): string {
   const firstAngle = html.indexOf("<");
   if (firstAngle > 0) return html.slice(firstAngle).trim();
 
-  return html;
+  return "";
 }
 
 /**

@@ -83,7 +83,7 @@ implementation plan.
 
 ## Visual artifacts (two-model pipeline)
 
-Ordinary answers come from the OpenRouter chat model. When a response benefits
+Ordinary answers come from the chat model (OpenRouter, or Anthropic direct as a fallback). When a response benefits
 from a custom visual, that model calls the `generate_visual` tool with a
 natural-language description instead of writing HTML itself. The tool runs an
 **NVIDIA NIM diffusion model** (`google/diffusiongemma-26b-a4b-it`) server-side
