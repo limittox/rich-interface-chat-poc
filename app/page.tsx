@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Thread } from "@/components/assistant-ui/thread";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { WeatherToolUI } from "@/components/assistant-ui/weather-tool-ui";
@@ -77,7 +78,13 @@ export default function Home() {
         {/* Registers the standalone generated visual for the generate_visual tool */}
         <GenerateVisualToolUI />
         <div className="flex h-full flex-col">
-          <header className="flex items-center justify-end border-b border-border px-4 py-2">
+          <header className="flex items-center justify-between border-b border-border px-4 py-2">
+            <Link
+              href="/compare"
+              className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+              Compare ↗
+            </Link>
             <VisualProviderToggle
               value={visualProvider}
               onChange={setVisualProvider}
