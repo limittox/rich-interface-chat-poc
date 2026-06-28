@@ -14,13 +14,22 @@ export function ThemeToggle() {
 
   useEffect(() => setMounted(true), []);
 
-  const isDark = resolvedTheme === "dark";
+  // Gate the resolved-theme read behind `mounted` so the first client render
+  // matches the server (where the theme is unknown) — avoids a hydration
+  // mismatch on the title/icon. After mount, this re-renders with the real value.
+  const isDark = mounted && resolvedTheme === "dark";
 
   return (
     <button
       type="button"
       aria-label="Toggle dark mode"
-      title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      title={
+        !mounted
+          ? "Toggle dark mode"
+          : isDark
+            ? "Switch to light mode"
+            : "Switch to dark mode"
+      }
       onClick={() => setTheme(isDark ? "light" : "dark")}
       className="inline-flex size-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground"
     >
