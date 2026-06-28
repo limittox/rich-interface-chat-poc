@@ -81,6 +81,18 @@ See `docs/superpowers/specs/2026-06-25-assistant-ui-chat-poc-design.md` for the
 design and `docs/superpowers/plans/2026-06-25-assistant-ui-chat-poc.md` for the
 implementation plan.
 
+## Visual artifacts (two-model pipeline)
+
+Ordinary answers come from the OpenRouter chat model. When a response benefits
+from a custom visual, that model calls the `generate_visual` tool with a
+natural-language description instead of writing HTML itself. The tool runs an
+**NVIDIA NIM diffusion model** (`google/diffusiongemma-26b-a4b-it`) server-side
+to generate the HTML/CSS, which is rendered in a sandboxed, no-network iframe.
+
+Set `NVIDIA_NIM_API_KEY` (an `nvapi-` key from build.nvidia.com) in your
+environment to enable visuals. Optionally override `NVIDIA_NIM_MODEL`. If the
+key is absent, the app still answers in prose — visuals are skipped gracefully.
+
 ## Tech stack
 
 Next.js (App Router) · Tailwind · shadcn · `@assistant-ui/react` +
