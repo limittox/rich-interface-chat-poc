@@ -1,9 +1,6 @@
-import { anthropic } from "@ai-sdk/anthropic";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import {
   type JSONSchema7,
-  type LanguageModel,
   streamText,
   convertToModelMessages,
   type UIMessage,
@@ -14,22 +11,10 @@ import {
 import { z } from "zod";
 import { generateVisualHtml } from "@/lib/nim";
 import { generateVisualWithModel } from "@/lib/visual";
+import { getModel } from "@/lib/model";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
-
-// Prefer OpenRouter when its key is present; otherwise use Anthropic direct.
-function getModel(): LanguageModel {
-  if (process.env.OPENROUTER_API_KEY) {
-    const openrouter = createOpenRouter({
-      apiKey: process.env.OPENROUTER_API_KEY,
-    });
-    return openrouter(
-      process.env.OPENROUTER_MODEL ?? "deepseek/deepseek-v4-flash",
-    );
-  }
-  return anthropic(process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8");
-}
 
 const VISUAL_SYSTEM_PROMPT = `When a response would materially benefit from a custom visual — a styled card, a side-by-side comparison, a simple diagram, a timeline, or a simple chart — call the \`generate_visual\` tool.
 
