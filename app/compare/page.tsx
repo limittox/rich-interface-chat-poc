@@ -123,7 +123,7 @@ export default function ComparePage() {
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-2 gap-4 p-4">
+      <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-1 gap-4 p-4">
         <ComparisonPanel
           title="DeepSeek V4 Flash"
           subtitle="OpenRouter · autoregressive"
@@ -146,7 +146,7 @@ export default function ComparePage() {
 
       <form
         onSubmit={onSubmit}
-        className="flex items-center gap-2 border-t border-border p-4"
+        className="flex shrink-0 items-center gap-2 border-t border-border bg-background p-4"
       >
         <input
           value={prompt}
