@@ -16,6 +16,7 @@ export function ComparisonPanel({
   status,
   wallMs,
   serverMs,
+  firstTokenMs,
   html,
   text,
   error,
@@ -25,6 +26,7 @@ export function ComparisonPanel({
   status: PanelStatus;
   wallMs: number;
   serverMs: number | null;
+  firstTokenMs: number | null;
   html: string | null;
   text: string | null;
   error: string | null;
@@ -51,13 +53,18 @@ export function ComparisonPanel({
               model {formatDuration(serverMs)}
             </div>
           )}
+          {serverMs === null && firstTokenMs !== null && (
+            <div className="text-[11px] tabular-nums text-muted-foreground">
+              first token {formatDuration(firstTokenMs)}
+            </div>
+          )}
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-4">
         {status === "idle" && (
           <p className="text-sm text-muted-foreground">Awaiting prompt…</p>
         )}
-        {status === "running" && (
+        {status === "running" && !text && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span
               aria-hidden
@@ -72,7 +79,7 @@ export function ComparisonPanel({
           </div>
         )}
         {status === "done" && html && <VisualArtifact html={html} />}
-        {status === "done" && !html && text && (
+        {(status === "running" || status === "done") && !html && text && (
           <div className="whitespace-pre-wrap text-sm leading-relaxed">
             {text}
           </div>

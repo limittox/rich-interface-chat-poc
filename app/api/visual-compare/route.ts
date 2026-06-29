@@ -1,11 +1,13 @@
+import { streamText } from "ai";
 import { generateNimText, generateVisualHtml } from "@/lib/nim";
 import { generateVisualWithModel } from "@/lib/visual";
-import { generateModelText } from "@/lib/text";
 import { getModel } from "@/lib/model";
 
 // A single generation (DeepSeek autoregressive) can run well past the chat
 // route's 30s; give the race endpoint more headroom.
 export const maxDuration = 60;
+
+const TEXT_MAX_OUTPUT_TOKENS = 1000;
 
 type CompareRequest = {
   prompt?: string;
@@ -24,15 +26,38 @@ export async function POST(req: Request) {
     );
   }
 
+  // Text mode streams as a plain-text body so the answer appears progressively.
+  // DeepSeek streams token-by-token; NIM is fast and whole-shot, so it returns
+  // its full text in one chunk. The client measures wall-clock + time-to-first.
+  if (visuals === false) {
+    if (provider === "deepseek") {
+      const result = streamText({
+        model: getModel(),
+        prompt,
+        maxOutputTokens: TEXT_MAX_OUTPUT_TOKENS,
+        temperature: 0.3,
+      });
+      return result.toTextStreamResponse();
+    }
+
+    const nim = await generateNimText(prompt);
+    if ("error" in nim) {
+      return new Response(nim.error, {
+        status: 502,
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
+    return new Response(nim.text, {
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
+
+  // Visual mode: complete HTML returned as JSON with a server-measured time.
   const start = performance.now();
   const result =
-    visuals === false
-      ? provider === "deepseek"
-        ? await generateModelText({ prompt, model: getModel() })
-        : await generateNimText(prompt)
-      : provider === "deepseek"
-        ? await generateVisualWithModel({ description: prompt, model: getModel() })
-        : await generateVisualHtml({ description: prompt });
+    provider === "deepseek"
+      ? await generateVisualWithModel({ description: prompt, model: getModel() })
+      : await generateVisualHtml({ description: prompt });
   const elapsedMs = Math.round(performance.now() - start);
 
   return Response.json({ ...result, elapsedMs });

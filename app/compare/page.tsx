@@ -15,6 +15,7 @@ type PanelState = {
   status: PanelStatus;
   wallMs: number;
   serverMs: number | null;
+  firstTokenMs: number | null;
   html: string | null;
   text: string | null;
   error: string | null;
@@ -24,6 +25,7 @@ const INITIAL: PanelState = {
   status: "idle",
   wallMs: 0,
   serverMs: null,
+  firstTokenMs: null,
   html: null,
   text: null,
   error: null,
@@ -65,29 +67,85 @@ export default function ComparePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: p, provider, visuals }),
       });
-      const wallMs = performance.now() - t0;
-      const data = (await res.json()) as {
-        html?: string;
-        text?: string;
-        error?: string;
-        elapsedMs?: number;
-      };
-      const ok = Boolean(data.html || data.text);
-      setPanel({
-        status: ok ? "done" : "error",
-        wallMs,
-        serverMs: typeof data.elapsedMs === "number" ? data.elapsedMs : null,
-        html: data.html ?? null,
-        text: data.text ?? null,
-        error: data.error ?? (ok ? null : "Generation failed."),
-      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        setPanel({
+          ...INITIAL,
+          status: "error",
+          wallMs: performance.now() - t0,
+          error: errText.trim() || "Generation failed.",
+        });
+        return;
+      }
+
+      // Visual mode: complete HTML returned as JSON with a server-measured time.
+      if (visuals) {
+        const data = (await res.json()) as {
+          html?: string;
+          error?: string;
+          elapsedMs?: number;
+        };
+        const ok = Boolean(data.html);
+        setPanel({
+          ...INITIAL,
+          status: ok ? "done" : "error",
+          wallMs: performance.now() - t0,
+          serverMs: typeof data.elapsedMs === "number" ? data.elapsedMs : null,
+          html: data.html ?? null,
+          error: data.error ?? (ok ? null : "Generation failed."),
+        });
+        return;
+      }
+
+      // Text mode: read the streamed plain-text body and render it as it arrives.
+      const reader = res.body?.getReader();
+      if (!reader) {
+        setPanel({
+          ...INITIAL,
+          status: "error",
+          wallMs: performance.now() - t0,
+          error: "No response stream.",
+        });
+        return;
+      }
+      const decoder = new TextDecoder();
+      let text = "";
+      let firstTokenMs: number | null = null;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        if (!chunk) continue;
+        if (firstTokenMs === null) firstTokenMs = performance.now() - t0;
+        text += chunk;
+        const snapshotText = text;
+        const snapshotFirst = firstTokenMs;
+        setPanel((s) => ({
+          ...s,
+          status: "running",
+          html: null,
+          text: snapshotText,
+          firstTokenMs: snapshotFirst,
+        }));
+      }
+      text += decoder.decode();
+      const finalText = text;
+      const finalFirst = firstTokenMs;
+      setPanel((s) => ({
+        ...s,
+        status: finalText.trim() ? "done" : "error",
+        wallMs: performance.now() - t0,
+        html: null,
+        text: finalText,
+        firstTokenMs: finalFirst,
+        error: finalText.trim() ? null : "No output.",
+      }));
     } catch {
       setPanel({
+        ...INITIAL,
         status: "error",
         wallMs: performance.now() - t0,
-        serverMs: null,
-        html: null,
-        text: null,
         error: "Request failed.",
       });
     }
@@ -151,6 +209,7 @@ export default function ComparePage() {
           status={left.status}
           wallMs={left.wallMs}
           serverMs={left.serverMs}
+          firstTokenMs={left.firstTokenMs}
           html={left.html}
           text={left.text}
           error={left.error}
@@ -161,6 +220,7 @@ export default function ComparePage() {
           status={right.status}
           wallMs={right.wallMs}
           serverMs={right.serverMs}
+          firstTokenMs={right.firstTokenMs}
           html={right.html}
           text={right.text}
           error={right.error}
