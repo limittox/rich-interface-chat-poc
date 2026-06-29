@@ -38,6 +38,22 @@ function buildSrcDoc(html: string): string {
 </head>
 <body>
 ${html}
+<style>
+  /* Override AFTER the model's styles: keep viewport-locked layouts
+     (height:100vh / full-height centering / internal-scroll wrappers) from
+     collapsing this auto-sizing iframe to a tiny strip. */
+  html, body {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  body > * {
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+</style>
 <script>
 (function () {
   function report() {
