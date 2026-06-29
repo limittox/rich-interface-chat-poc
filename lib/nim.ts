@@ -14,6 +14,7 @@ Strict rules:
 - Fully self-contained: inline CSS or a single <style> block. No external resources of any kind — no remote scripts, stylesheets, fonts, or images — and no network access (no fetch, XHR, WebSocket).
 - Use data: URIs only if an image is essential.
 - Make the layout responsive to its container width.
+- Size content by natural height or explicit pixels. Do NOT use viewport units (vh/vw) or full-height layouts (height:100% or 100vh on html/body, or a body flex layout that centers vertically against the viewport). This renders in a height-auto-sizing iframe with no fixed viewport, so viewport/percentage heights collapse to a tiny strip. Give canvases, game boards, and fixed regions explicit pixel sizes (e.g. height:400px).
 - If a chart is needed, draw it with inline SVG or a <canvas> plus an inline <script>. No chart libraries are available.`;
 
 // Root tags we expect a visual to start with; used to detect a dropped leading "<".
